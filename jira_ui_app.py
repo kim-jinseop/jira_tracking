@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import requests
 import pandas as pd
 import re
+from st_aggrid import AgGrid, GridOptionsBuilder
 
 # ──────────────────────────────────────────────────────────
 # 1. 페이지 설정
@@ -17,44 +18,19 @@ st.title("Jira 업무 로그 시각화")
 # ──────────────────────────────────────────────────────────
 # 2. 전역 설정
 # ──────────────────────────────────────────────────────────
-# Jira API 인증 정보 (하드코딩)
 JIRA_EMAIL     = st.secrets["jira_email"]
 JIRA_API_TOKEN = st.secrets["jira_token"]
 JIRA_DOMAIN    = st.secrets.get("auto-jira.atlassian.net")
 AUTH           = (JIRA_EMAIL, JIRA_API_TOKEN)
 HEADERS        = {"Accept": "application/json"}
 
-# 업무 분류 목록
 DEFAULT_CATEGORIES = ["테스트", "개발", "회의", "세미나", "기타"]
-
-# 선택 가능한 작성자 리스트 (하드코딩)
-ASSIGNEES = [
-    "Jinseop Kim 김진섭",
-    "Jaewon HUH",
-    "서준",
-    "권혁용",
-    "SEOYEON KIM",
-    "박한비",
-]
+ASSIGNEES = ["Jinseop Kim 김진섭", "Jaewon HUH", "서준", "권혁용", "SEOYEON KIM", "박한비"]
 
 # ──────────────────────────────────────────────────────────
 # 3. CSS 오버라이드: 흰색 배경 & 표 스타일
 # ──────────────────────────────────────────────────────────
-st.markdown("""
-<style>
-  /* 전체 페이지 흰색 배경, 기본 텍스트 검정 */
-  body {
-    background-color: #FFFFFF !important;
-    color: #000000 !important;
-  }
-  /* 모든 표 셀 가운데 정렬 */
-  table th, table td {
-    text-align: left !important;
-  }
-  /* 표 컨테이너 배경 흰색 */
-  .css-1lcbmhc .element-container { background-color: #fff !important; }
-</style>
-""", unsafe_allow_html=True)
+
 
 # ──────────────────────────────────────────────────────────
 # 4. 헬퍼 함수
@@ -137,7 +113,9 @@ def get_issues(project: str, author: str, start: str, end: str):
         "fields":    "key,summary,parent"
     }
     resp = requests.get(url, auth=AUTH, headers=HEADERS, params=params)
-    return resp.json().get("issues", [])
+    data = resp.json()
+    # print(json.dumps(data, ensure_ascii=False, indent=2))
+    return data.get("issues", [])
 
 def get_worklogs(issue_key: str):
     """특정 이슈의 모든 워크로그 항목 조회"""
@@ -239,40 +217,60 @@ if st.sidebar.button("조회 실행"):
         start_date.strftime("%Y-%m-%d"),
         end_date.strftime("%Y-%m-%d"),
     )
-
-    # 1) 일별 업무 내용 기록 (날짜 내림차순)
+    
+    # 1) 일별 업무 내용 기록
     st.subheader("1. 일별 업무 내용 기록")
-    df = pd.DataFrame(records)[
-        ["날짜","업무 분류","상위 항목","티켓","업무 내용","소요 시간","링크"]
-    ]
-    # (기존 정렬 · 포맷팅)
-    df["날짜"] = pd.to_datetime(df["날짜"]).dt.strftime("%Y-%m-%d")
-    df = df.sort_values("날짜", ascending=True)
 
-    # 2) <br> → \n 로 바꾸고, 각 라인별로 리스트화
-    df["업무 내용"] = (
-        df["업무 내용"]
-        .str.replace("<br>", "\n")  # HTML BR 태그 제거
-        .str.split("\n")             # "\n"을 기준으로 리스트 생성
-    )
-    st.dataframe(
-        df,
-        hide_index=True,
-        use_container_width=True,
-        column_config={
-            # "업무 내용" 을 리스트 컬럼으로 처리해서 줄바꿈(리스트) 렌더링
-            "업무 내용": st.column_config.ListColumn(
-                "업무 내용", 
-                width="large",       # 필요에 따라 small/medium/large 조절
-                help="각 항목이 줄바꿈(리스트)되어 표시됩니다."
-            ),
-            # 링크는 기존대로 클릭 가능한 컬럼으로
-            "링크": st.column_config.LinkColumn(
-                "링크", 
-                display_text="바로가기"
-            ),
-        }
-    )
+    # 1-1) records 가 비어 있으면 얼리 리턴
+    if not records:
+        st.info("조회된 업무 로그가 없습니다.")
+    else:
+        # 기대하는 컬럼 순서
+        expected_cols = [
+            "날짜","업무 분류","상위 항목","티켓",
+            "업무 내용","소요 시간","링크"
+        ]
+        
+        # DataFrame 생성
+        df = pd.DataFrame(records)
+        
+        # 누락된 컬럼이 있으면 빈 문자열로 추가
+        for col in expected_cols:
+            if col not in df.columns:
+                df[col] = ""
+        
+        # 원하는 순서대로 재배치
+        df = df[expected_cols]
+        
+        # 날짜 내림차순 정렬
+        df["날짜"] = pd.to_datetime(df["날짜"])
+        df = df.sort_values("날짜", ascending=True)
+        df["날짜"] = df["날짜"].dt.strftime("%Y-%m-%d")
+        
+        # 업무 내용: '<br>' → 줄바꿈 리스트로 변환
+        df["업무 내용"] = (
+            df["업무 내용"]
+              .str.replace("<br>", "\n")
+              .str.split("\n")
+        )
+        
+        # DataFrame 렌더링
+        st.dataframe(
+            df,
+            hide_index=True,
+            use_container_width=True,
+            column_config={
+                "업무 내용": st.column_config.ListColumn(
+                    "업무 내용",
+                    width="large",
+                    help="각 줄이 줄바꿈 리스트로 표시됩니다."
+                ),
+                "링크": st.column_config.LinkColumn(
+                    "링크",
+                    display_text="바로가기"
+                ),
+            }
+        )
     # 2) 개인별 총 업무 시간 집계
     st.subheader("2. 개인별 총 업무 시간 집계")
     df2 = pd.DataFrame.from_dict(daily, orient="index")
