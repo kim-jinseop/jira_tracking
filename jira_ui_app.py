@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import requests
 import pandas as pd
 import re
-from st_aggrid import AgGrid, GridOptionsBuilder
 
 # ──────────────────────────────────────────────────────────
 # 1. 페이지 설정
