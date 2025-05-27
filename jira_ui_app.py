@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 import requests
 import pandas as pd
 import re
-from st_aggrid import AgGrid, GridOptionsBuilder
 
 # ──────────────────────────────────────────────────────────
 # 1. 페이지 설정
@@ -19,9 +18,9 @@ st.title("Jira 업무 로그 시각화")
 # 2. 전역 설정
 # ──────────────────────────────────────────────────────────
 # Jira API 인증 정보 (하드코딩)
-JIRA_EMAIL     = "kimjinseop5697@autocrypt.io"
-JIRA_API_TOKEN = "ATATT3xFfGF0WcVF8BylZT0TStOHJLXBUYuINn3m56sqabyicZBYouUtGi8kaLonBX7zea6e8jqsxftG8cFJmj5ysnm4A0pxMRc9UtM_PvTBE0MYgLqNS9IU8drdR6iqMHOeYXktJ1xD6Ok149aNUCMB4439NzzcKP-tcp4HeuXkjjMRBxPmARM=9625F5E5"
-JIRA_DOMAIN    = "auto-jira.atlassian.net"
+JIRA_EMAIL     = st.secrets["jira_email"]
+JIRA_API_TOKEN = st.secrets["jira_token"]
+JIRA_DOMAIN    = st.secrets.get("auto-jira.atlassian.net")
 AUTH           = (JIRA_EMAIL, JIRA_API_TOKEN)
 HEADERS        = {"Accept": "application/json"}
 
