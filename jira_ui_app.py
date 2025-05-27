@@ -20,7 +20,7 @@ st.title("Jira 업무 로그 시각화")
 # ──────────────────────────────────────────────────────────
 JIRA_EMAIL     = st.secrets["jira_email"]
 JIRA_API_TOKEN = st.secrets["jira_token"]
-JIRA_DOMAIN    = st.secrets.get("auto-jira.atlassian.net")
+JIRA_DOMAIN    = "auto-jira.atlassian.net"
 AUTH           = (JIRA_EMAIL, JIRA_API_TOKEN)
 HEADERS        = {"Accept": "application/json"}
 
