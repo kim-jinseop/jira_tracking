@@ -172,7 +172,7 @@ def process_by_author(project, author_name, start_s, end_s):
                 "티켓":      summary,
                 "업무 내용": desc.replace("\n","<br>"),
                 "소요 시간": secs_to_hms(sec),
-                "링크":      f'<a href="https://{JIRA_DOMAIN}/browse/{key}" target="_blank">바로가기</a>'
+                "링크": f'https://{JIRA_DOMAIN}/browse/{key}'
             })
 
             # 일별 시간 합계 준비
@@ -266,7 +266,7 @@ if st.sidebar.button("조회 실행"):
                 ),
                 "링크": st.column_config.LinkColumn(
                     "링크",
-                    display_text="바로가기"
+                    display_text="바로가기",
                 ),
             }
         )
