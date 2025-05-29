@@ -200,7 +200,15 @@ def process_by_author(project, author_name, start_s, end_s):
 # ──────────────────────────────────────────────────────────
 # 7. UI: 사이드바 입력 및 조회 실행
 # ──────────────────────────────────────────────────────────
-st.sidebar.subheader("조회 설정")
+st.sidebar.subheader("담당자 관리")
+raw = st.sidebar.text_area(
+    "담당자 목록 (콤마로 구분)", 
+    value=",".join(ASSIGNEES), 
+    help="콤마(,)로 구분하여 입력하세요. 변경 즉시 아래 ‘조회 설정’에 반영됩니다."
+)
+# 공백 제거 후 split
+ASSIGNEES = [s.strip() for s in raw.split(",") if s.strip()]
+
 project    = st.sidebar.text_input("프로젝트 키", value="VTS")
 author_sel = st.sidebar.selectbox("담당자", options=ASSIGNEES)
 col1, col2 = st.sidebar.columns(2)
