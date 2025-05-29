@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import requests
 import pandas as pd
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # ──────────────────────────────────────────────────────────
 # 1. 페이지 설정
@@ -128,60 +129,61 @@ def get_worklogs(issue_key: str):
 def process_by_author(project, author_name, start_s, end_s):
     sd = parse_date(start_s)
     ed = parse_date(end_s)
-    records = []
-    daily   = {}
+    records, daily = [], {}
 
-    # (1) JQL 필터를 통해 필요한 이슈만 서버에서 조회
+    # 1) 이슈는 프로젝트만 JQL로 필터 (worklog filtering은 아래에서)
     issues = get_issues(project, author_name, start_s, end_s)
+    issue_keys = [it["key"] for it in issues]
 
-    for it in issues:
-        key     = it["key"]
-        summary = it["fields"].get("summary", "") or ""
-        # parent가 있으면 최상위 summary, 없으면 self summary
-        p = it["fields"].get("parent")
-        if p:
-            top = p
-            while top.get("fields", {}).get("parent"):
-                top = top["fields"]["parent"]
-            top_sum = top["fields"].get("summary", "")
-        else:
-            top_sum = summary
+    # 2) ThreadPool 으로 워크로그 API 병렬 호출
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        futures = {executor.submit(get_worklogs, key): key for key in issue_keys}
+        for future in as_completed(futures):
+            key = futures[future]
+            wl_list = future.result()  # 해당 이슈의 워크로그 리스트
 
-        # (2) 각 워크로그 항목 순회
-        for wl in get_worklogs(key):
-            author = wl.get("author", {}).get("displayName", "")
-            # 실제 JQL에도 author 필터를 걸었지만, 이중 체크
-            if author != author_name:
-                continue
+            # find summary+parent for this issue
+            it = next(filter(lambda x: x["key"]==key, issues))
+            summary = it["fields"].get("summary","") or ""
+            p = it["fields"].get("parent")
+            if p:
+                top = p
+                while top.get("fields",{}).get("parent"):
+                    top = top["fields"]["parent"]
+                top_sum = top["fields"].get("summary","")
+            else:
+                top_sum = summary
 
-            started = wl.get("started")
-            if not started:
-                continue
-            dt = datetime.fromisoformat(started.replace("Z","+00:00"))
-            if not (sd <= dt.date() <= ed):
-                continue
+            # 3) 각각의 워크로그 항목 처리 (기존 로직)
+            for wl in wl_list:
+                author = wl.get("author",{}).get("displayName","")
+                if author != author_name: 
+                    continue
+                started = wl.get("started")
+                if not started: 
+                    continue
+                dt = datetime.fromisoformat(started.replace("Z","+00:00"))
+                if not (sd <= dt.date() <= ed):
+                    continue
+                cat, desc = parse_comment(wl.get("comment"))
+                sec = wl.get("timeSpentSeconds",0)
+                date_str = dt.strftime("%Y-%m-%d")
 
-            cat, desc = parse_comment(wl.get("comment"))
-            sec = wl.get("timeSpentSeconds", 0)
+                records.append({
+                    "날짜":      date_str,
+                    "업무 분류": cat,
+                    "상위 항목": top_sum,
+                    "티켓":      summary,
+                    "업무 내용": desc.replace("\n","<br>"),
+                    "소요 시간": secs_to_hms(sec),
+                    "링크":      f'https://{JIRA_DOMAIN}/browse/{key}'
+                })
 
-            date_str = dt.strftime("%Y-%m-%d")
-            records.append({
-                "날짜":      date_str,
-                "업무 분류": cat,
-                "상위 항목": top_sum,
-                "티켓":      summary,
-                "업무 내용": desc.replace("\n","<br>"),
-                "소요 시간": secs_to_hms(sec),
-                "링크": f'https://{JIRA_DOMAIN}/browse/{key}'
-            })
-
-            # 일별 시간 합계 준비
-            if date_str not in daily:
-                daily[date_str] = {c: 0 for c in DEFAULT_CATEGORIES}
-                daily[date_str]["전체 총 시간"] = 0
-            cat_key = cat if cat in DEFAULT_CATEGORIES else "기타"
-            daily[date_str][cat_key]      += sec
-            daily[date_str]["전체 총 시간"] += sec
+                daily.setdefault(date_str, {c:0 for c in DEFAULT_CATEGORIES})
+                daily[date_str].setdefault("전체 총 시간", 0)
+                key_cat = cat if cat in DEFAULT_CATEGORIES else "기타"
+                daily[date_str][key_cat]      += sec
+                daily[date_str]["전체 총 시간"] += sec
 
     # (3) 총합 계산
     total = {c: sum(daily[d].get(c, 0) for d in daily) for c in DEFAULT_CATEGORIES}
