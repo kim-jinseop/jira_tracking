@@ -289,9 +289,8 @@ if st.sidebar.button("조회 실행"):
             hide_index=True,
             use_container_width=True,
             column_config={
-                "업무 내용": st.column_config.ListColumn(
+                "업무 내용": st.column_config.TextColumn(
                     "업무 내용",
-                    wrap_text=True,    # 여러 줄 띄워쓰기
                     width="large"
                 ),
                 "링크": st.column_config.LinkColumn(
