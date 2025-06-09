@@ -76,20 +76,21 @@ def parse_comment(c):
     return (m.group(1), m.group(2)) if m else ("기타", c)
 
 def secs_to_hms(sec: int) -> str:
-    """초(sec)를 'Xd Yh Zm Ws' 형식 문자열로 변환"""
-    td = timedelta(seconds=sec or 0)
-    parts = []
-    if td.days:
-        parts.append(f"{td.days}d")
-    h, rem = divmod(td.seconds, 3600)
-    if h:
-        parts.append(f"{h}h")
+    """
+    초(sec)를 ‘Xh Ym Zs’ 포맷으로 바꿉니다.
+    (기존에 days 를 hours 로 합산해서 처리)
+    """
+    total_hours, rem = divmod(sec or 0, 3600)
     m, s = divmod(rem, 60)
+    parts = []
+    if total_hours:
+        parts.append(f"{total_hours}h")
     if m:
         parts.append(f"{m}m")
-    if s or not parts:
-        parts.append(f"{s}s")
+    # 초단위는 0s 도 표시
+    parts.append(f"{s}s")
     return " ".join(parts)
+
 
 # ──────────────────────────────────────────────────────────
 # 5. Jira API 호출: 이슈 & 워크로그
@@ -256,27 +257,46 @@ if st.sidebar.button("조회 실행"):
         df = df.sort_values("날짜", ascending=True)
         df["날짜"] = df["날짜"].dt.strftime("%Y-%m-%d")
         
-        # 업무 내용: '<br>' → 줄바꿈 리스트로 변환
-        df["업무 내용"] = (
-            df["업무 내용"]
-              .str.replace("<br>", "\n")
-              .str.split("\n")
-        )
+        # # 업무 내용: '<br>' → 줄바꿈 리스트로 변환
+        # df["업무 내용"] = (
+        #     df["업무 내용"]
+        #       .str.replace("<br>", "\n")
+        #       .str.split("\n")
+        # )
         
-        # DataFrame 렌더링
+        # # DataFrame 렌더링
+        # st.dataframe(
+        #     df,
+        #     hide_index=True,
+        #     use_container_width=True,
+        #     column_config={
+        #         "업무 내용": st.column_config.ListColumn(
+        #             "업무 내용",
+        #             width="large",
+        #             help="각 줄이 줄바꿈 리스트로 표시됩니다."
+        #         ),
+        #         "링크": st.column_config.LinkColumn(
+        #             "링크",
+        #             display_text="바로가기",
+        #         ),
+        #     }
+        # )
+        
+        # 업무 내용: '<br>' → 실제 개행문자로 (TextColumn 에서 wrap_text=True 로 보여줌)
+        df["업무 내용"] = df["업무 내용"].str.replace("<br>", "\n")
         st.dataframe(
             df,
             hide_index=True,
             use_container_width=True,
             column_config={
-                "업무 내용": st.column_config.ListColumn(
+                "업무 내용": st.column_config.TextColumn(
                     "업무 내용",
-                    width="large",
-                    help="각 줄이 줄바꿈 리스트로 표시됩니다."
+                    wrap_text=True,    # 여러 줄 띄워쓰기
+                    width="large"
                 ),
                 "링크": st.column_config.LinkColumn(
                     "링크",
-                    display_text="바로가기",
+                    display_text="바로가기"
                 ),
             }
         )
