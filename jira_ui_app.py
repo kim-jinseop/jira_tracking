@@ -76,19 +76,20 @@ def parse_comment(c):
     return (m.group(1), m.group(2)) if m else ("기타", c)
 
 def secs_to_hms(sec: int) -> str:
-    """초(sec)를 'Xd Yh Zm Ws' 형식 문자열로 변환"""
+    """
+    초(sec)를 'Hh Mm' 형식 문자열로 변환합니다.
+    (timedelta 사용, days → hours 환산, 초 단위는 생략)
+    """
     td = timedelta(seconds=sec or 0)
+    total_hours = td.days * 24 + td.seconds // 3600
+    minutes     = (td.seconds % 3600) // 60
+
     parts = []
-    if td.days:
-        parts.append(f"{td.days}d")
-    h, rem = divmod(td.seconds, 3600)
-    if h:
-        parts.append(f"{h}h")
-    m, s = divmod(rem, 60)
-    if m:
-        parts.append(f"{m}m")
-    if s or not parts:
-        parts.append(f"{s}s")
+    if total_hours:
+        parts.append(f"{total_hours}h")
+    # 분 단위가 0이어도 최소한 "0m" 표시
+    parts.append(f"{minutes}m")
+
     return " ".join(parts)
 
 
