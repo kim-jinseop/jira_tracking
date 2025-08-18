@@ -174,7 +174,7 @@ def process_by_author(project, author_name, start_s, end_s):
                 records.append({
                     "날짜":      date_str,
                     "업무 분류": cat,
-                    "상위 항목": top_sum,
+                    # "상위 항목": top_sum,
                     "티켓":      summary,
                     "업무 내용": desc.replace("\n","<br>"),
                     "소요 시간": secs_to_hms(sec),
@@ -238,7 +238,9 @@ if st.sidebar.button("조회 실행"):
     else:
         # 기대하는 컬럼 순서
         expected_cols = [
-            "날짜","업무 분류","상위 항목","티켓",
+            "날짜","업무 분류",
+            #"상위 항목",
+            "티켓",
             "업무 내용","소요 시간","링크"
         ]
         
