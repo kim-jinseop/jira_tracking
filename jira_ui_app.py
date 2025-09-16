@@ -101,7 +101,7 @@ def get_issues(project: str, author: str, start: str, end: str):
     worklogAuthor + worklogDate 조건까지 포함한 JQL로
     해당 이슈만 한 번에 조회
     """
-    url = f"https://{JIRA_DOMAIN}/rest/api/3/search"
+    url = f"https://{JIRA_DOMAIN}/rest/api/3/search/jql"
     jql = (
         f'project="{project}" '
         f'AND worklogAuthor="{author}" '
@@ -116,6 +116,12 @@ def get_issues(project: str, author: str, start: str, end: str):
     }
     resp = requests.get(url, auth=AUTH, headers=HEADERS, params=params)
     data = resp.json()
+    
+    # # ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼ 디버깅 코드 추가 ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    # st.info("`get_issues` 함수의 API 응답 결과:")
+    # st.json(data)
+    # # ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲ 디버깅 코드 추가 ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    
     # print(json.dumps(data, ensure_ascii=False, indent=2))
     return data.get("issues", [])
 
